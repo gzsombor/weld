@@ -1,16 +1,29 @@
 OS = $(shell uname -s)
-LLVM_VERSION = $(shell llvm-config --version | cut -d . -f 1,2)
+ifeq (, $(shell which llvm-config))
+  $(info No llvm-config on the path, try to use llvmenv)
+  LLVM_PREFIX = $(shell llvmenv prefix)
+  $(info LLVM is installed into $(LLVM_PREFIX))
+  LLVM_CONFIG = $(LLVM_PREFIX)/bin/llvm-config
+  LLVM_VERSION = $(shell $(LLVM_CONFIG) --version | cut -d . -f 1,2)
+else
+  LLVM_CONFIG = llvm-config
+  LLVM_VERSION = $(shell llvm-config --version | cut -d . -f 1,2)
+endif
 
 CFLAGS = -O3 -fno-use-cxa-atexit
-CFLAGS += $(shell llvm-config --cppflags) $(shell llvm-config --cxxflags)
-LIBDIR = $(shell llvm-config --libdir)
-LLVMLIBS = $(shell llvm-config --system-libs) $(shell llvm-config --libs)
+CFLAGS += $(shell $(LLVM_CONFIG) --cppflags) $(shell $(LLVM_CONFIG) --cxxflags)
+LIBDIR = $(shell $(LLVM_CONFIG) --libdir)
+LLVMLIBS = $(shell $(LLVM_CONFIG) --system-libs) $(shell $(LLVM_CONFIG) --libs)
 LIB = libllvmext.a
 
 ifeq ($(OS), Darwin)
   CLANG ?= clang++
 else ifeq ($(OS), Linux)
-  CLANG ?= clang++-$(LLVM_VERSION)
+  ifeq (, $(shell which clang++-$(LLVM_VERSION)))
+    CLANG ?= $(LLVM_PREFIX)/bin/clang++
+  else
+    CLANG ?= clang++-$(LLVM_VERSION)
+  endif
 else
   $(error Unsupported platform: $(OS))
 endif

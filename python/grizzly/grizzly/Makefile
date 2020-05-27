@@ -1,5 +1,13 @@
 OS=$(shell uname -s)
-LLVM_VERSION=$(shell llvm-config --version | cut -d . -f 1,2)
+ifeq (, $(shell which llvm-config))
+  $(info No llvm-config on the path, try to use llvmenv)
+  LLVM_PREFIX = $(shell llvmenv prefix)
+  LLVM_CONFIG = $(LLVM_PREFIX)/bin/llvm-config
+  LLVM_VERSION = $(shell $(LLVM_CONFIG) --version | cut -d . -f 1,2)
+else
+  LLVM_CONFIG = llvm-config
+  LLVM_VERSION = $(shell llvm-config --version | cut -d . -f 1,2)
+endif
 
 PYTHON_HEADER_INCLUDE = $(shell python-config --includes)
 NUMPY_HEADER_INCLUDE = -I$(shell python -c "import numpy; print numpy.get_include()" 2>/dev/null)
@@ -24,8 +32,16 @@ ifeq (${OS}, Darwin)
   PYTHON_INCLUDES=${PYTHON_HEADER_INCLUDE} ${NUMPY_HEADER_INCLUDE}
 else ifeq (${OS}, Linux)
   # Linux
-  CLANG ?= clang-${LLVM_VERSION}
-  CLANGPP ?= clang++-${LLVM_VERSION}
+  ifeq (, $(shell which clang-$(LLVM_VERSION)))
+    CLANG ?= $(LLVM_PREFIX)/bin/clang
+  else
+    CLANG ?= clang-${LLVM_VERSION}
+  endif
+  ifeq (, $(shell which clang++-$(LLVM_VERSION)))
+    CLANGPP ?= $(LLVM_PREFIX)/bin/clang++
+  else
+    CLANGPP ?= clang++-${LLVM_VERSION}
+  endif
   FLAGS=-mavx2 -fuse-ld=gold -flto
   DFLAGS=-shared -fPIC
   DYLIB_SUFFIX=.so
